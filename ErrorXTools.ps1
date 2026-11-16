@@ -535,7 +535,7 @@ function Start-Verify($tool) {
 
         if ($tool.Type -eq "Exe") {
             $json = $client.DownloadString("https://api.github.com/repos/$($tool.Owner)/$($tool.Name)/releases?per_page=100") | ConvertFrom-Json
-            $releases = $json | Where-Object { -not $_.draft }
+            $releases = $json | Where-Object { -not $_.draft } | Sort-Object { [datetime]$_.published_at } -Descending
             $latest = $releases | Where-Object { -not $_.prerelease } | Select-Object -First 1
 
             function Get-Version($rel) {
