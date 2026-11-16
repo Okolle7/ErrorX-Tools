@@ -5,6 +5,7 @@ Add-Type -AssemblyName WindowsBase
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $installDir = "$env:USERPROFILE\Downloads\ErrorXTools"
+$iconUrl = "https://raw.githubusercontent.com/Okolle7/ErrorX-Tools/main/icon.png"
 $version = "1.0"
 
 $nav = [ordered]@{
@@ -208,8 +209,8 @@ $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIden
         <Border DockPanel.Dock="Left" Width="200" Background="#131316" BorderBrush="#27272A" BorderThickness="0,0,1,0">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="18,18,0,14">
-                    <Border Width="24" Height="24" CornerRadius="5" Background="#E5484D">
-                        <TextBlock Text="X" Foreground="White" FontWeight="Bold" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <Border x:Name="Logo" Width="28" Height="28" CornerRadius="6" Background="#E5484D">
+                        <TextBlock Text="X" Foreground="White" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
                         <TextBlock Text="ErrorX Tools" Foreground="#E4E4E7" FontSize="13.5" FontWeight="SemiBold"/>
@@ -325,8 +326,37 @@ $navItemXaml = @'
 $window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xaml))
 $ui = @{}
 foreach ($name in "Nav", "Rows", "Empty", "Search", "SearchHint", "Heading", "SubHeading", "Log", "Status", "BtnLog",
-                  "BtnAll", "BtnUpdateAll", "BtnFolder", "AdminDot", "AdminText", "Version") {
+                  "BtnAll", "BtnUpdateAll", "BtnFolder", "AdminDot", "AdminText", "Version", "Logo") {
     $ui[$name] = $window.FindName($name)
+}
+
+function Get-Icon {
+    $file = Join-Path $installDir "icon.png"
+    try {
+        if (-not (Test-Path $file)) {
+            New-Item -ItemType Directory -Force -Path $installDir | Out-Null
+            $client = New-Object Net.WebClient
+            $client.Headers.Add("User-Agent", "ErrorXTools")
+            $client.DownloadFile($iconUrl, "$file.part")
+            Move-Item -LiteralPath "$file.part" -Destination $file -Force
+        }
+        $img = New-Object Windows.Media.Imaging.BitmapImage
+        $img.BeginInit()
+        $img.CacheOption = "OnLoad"
+        $img.UriSource = $file
+        $img.EndInit()
+        return $img
+    } catch {
+        Remove-Item -LiteralPath $file, "$file.part" -ErrorAction SilentlyContinue
+        return $null
+    }
+}
+
+$icon = Get-Icon
+if ($icon) {
+    $window.Icon = $icon
+    $ui.Logo.Background = New-Object Windows.Media.ImageBrush -Property @{ ImageSource = $icon; Stretch = "UniformToFill" }
+    $ui.Logo.Child = $null
 }
 
 if (-not ("ErrorX.Dwm" -as [type])) {
