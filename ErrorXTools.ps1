@@ -417,7 +417,7 @@ function Update-Row($tool) {
     if ($tool.Downloading) {
         $tool.State.Text = "Downloading"
     } elseif ($tool.Type -eq "Ps1") {
-        $tool.State.Text = "Online"
+        $tool.State.Text = "Script"
         $tool.Btn.Content = "Run"
     } elseif ($installed) {
         $size = (Get-Item $tool.Path).Length
@@ -431,11 +431,12 @@ function Update-Row($tool) {
     $check = $tool.Check
     $text = $null
     $color = $colors.Gray
-    if ($installed -and -not $tool.Downloading) {
+    if (($installed -or $tool.Type -eq "Ps1") -and -not $tool.Downloading) {
         if ($tool.Verifying) {
             $text = "Checking"
         } elseif ($check) {
             switch ($check.State) {
+                "live"     { $text = "Updated $($check.Version)"; $color = $colors.Green }
                 "latest"   { $text = "Latest $($check.Version)"; $color = $colors.Green }
                 "outdated" { $text = "Outdated $($check.Version)"; $color = $colors.Amber }
                 "modified" { $text = "Not official"; $color = $colors.Red }
@@ -518,11 +519,21 @@ function Start-Verify($tool) {
         param($tool)
         $ErrorActionPreference = "Stop"
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $client = New-Object Net.WebClient
+        $client.Headers.Add("User-Agent", "ErrorXTools")
+
+        if ($tool.Type -eq "Ps1") {
+            if ($tool.Url -notmatch "^https://raw\.githubusercontent\.com/([^/]+)/([^/]+)/(?:refs/heads/)?([^/]+)/(.+)$") {
+                return @{ State = "live" }
+            }
+            $api = "https://api.github.com/repos/$($Matches[1])/$($Matches[2])/commits?sha=$($Matches[3])&path=$($Matches[4])&per_page=1"
+            $commit = @($client.DownloadString($api) | ConvertFrom-Json)[0].commit
+            return @{ State = "live"; Version = ([datetime]$commit.committer.date).ToString("dd.MM.yyyy"); Detail = $commit.message }
+        }
+
         $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $tool.Path).Hash.ToLower()
 
         if ($tool.Type -eq "Exe") {
-            $client = New-Object Net.WebClient
-            $client.Headers.Add("User-Agent", "ErrorXTools")
             $json = $client.DownloadString("https://api.github.com/repos/$($tool.Owner)/$($tool.Name)/releases?per_page=100") | ConvertFrom-Json
             $releases = $json | Where-Object { -not $_.draft }
             $latest = $releases | Where-Object { -not $_.prerelease } | Select-Object -First 1
@@ -705,7 +716,7 @@ $ui.BtnFolder.Add_Click({
     Start-Process explorer.exe "`"$installDir`""
 })
 
-foreach ($t in $tools | Where-Object { Test-Installed $_ }) { Start-Verify $t }
+foreach ($t in $tools | Where-Object { $_.Type -eq "Ps1" -or (Test-Installed $_) }) { Start-Verify $t }
 
 Update-Filter
 Write-Log "Ready"
