@@ -331,32 +331,19 @@ foreach ($name in "Nav", "Rows", "Empty", "Search", "SearchHint", "Heading", "Su
 }
 
 function Get-Icon {
-    $file = Join-Path $installDir "icon.png"
     try {
-        if (-not (Test-Path $file)) {
-            New-Item -ItemType Directory -Force -Path $installDir | Out-Null
-            $client = New-Object Net.WebClient
-            $client.Headers.Add("User-Agent", "ErrorXTools")
-            $client.DownloadFile($iconUrl, "$file.part")
-            Move-Item -LiteralPath "$file.part" -Destination $file -Force
-        }
+        $client = New-Object Net.WebClient
+        $client.Headers.Add("User-Agent", "ErrorXTools")
         $img = New-Object Windows.Media.Imaging.BitmapImage
         $img.BeginInit()
         $img.CacheOption = "OnLoad"
-        $img.UriSource = $file
+        $img.StreamSource = New-Object IO.MemoryStream (, $client.DownloadData($iconUrl))
         $img.EndInit()
         return $img
     } catch {
-        Remove-Item -LiteralPath $file, "$file.part" -ErrorAction SilentlyContinue
+        Write-Log "Icon not loaded: $($_.Exception.Message)"
         return $null
     }
-}
-
-$icon = Get-Icon
-if ($icon) {
-    $window.Icon = $icon
-    $ui.Logo.Background = New-Object Windows.Media.ImageBrush -Property @{ ImageSource = $icon; Stretch = "UniformToFill" }
-    $ui.Logo.Child = $null
 }
 
 if (-not ("ErrorX.Dwm" -as [type])) {
@@ -376,6 +363,13 @@ function Write-Log($msg) {
     $ui.Log.AppendText("[$(Get-Date -Format HH:mm:ss)] $msg`r`n")
     $ui.Log.ScrollToEnd()
     $ui.Status.Text = $msg
+}
+
+$icon = Get-Icon
+if ($icon) {
+    $window.Icon = $icon
+    $ui.Logo.Background = New-Object Windows.Media.ImageBrush -Property @{ ImageSource = $icon; Stretch = "UniformToFill" }
+    $ui.Logo.Child = $null
 }
 
 function Start-Tool($tool) {
