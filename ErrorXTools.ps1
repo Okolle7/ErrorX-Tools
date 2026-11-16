@@ -10,9 +10,9 @@ $version = "1.0"
 
 $nav = [ordered]@{
     "Library" = "All", "Installed", "Updates"
-    "Sources" = "MeowTonynoh", "Orbdiff", "NirSoft", "p1aegg"
+    "Sources" = "MeowTonynoh", "Orbdiff", "spokwn", "NirSoft", "p1aegg"
     "ErrorX"  = , "Checks"
-    "System"  = , "Dependencies"
+    "System"  = "Utilities", "Dependencies"
 }
 
 $tools = @(
@@ -29,6 +29,16 @@ $tools = @(
     @{ Name="InjGen";             Owner="Orbdiff";                          Type="Exe"; Admin=$true; Desc="JNI / JVMTI injection detector" }
     @{ Name="USBDetector";        Owner="Orbdiff";                          Type="Exe"; Admin=$true; Desc="USB history" }
     @{ Name="JARParser";          Owner="Orbdiff";                          Type="Exe"; Admin=$true; Desc="Executed jar files" }
+    @{ Name="StringsParser";      Owner="Orbdiff"; Asset="stringsparser*.exe"; Type="Exe"; Admin=$true; Desc="AppInfo and DiagTrack strings" }
+    @{ Name="BamDeletedKeys";     Owner="spokwn";                                    Type="Exe"; Admin=$true; Desc="Deleted BAM keys" }
+    @{ Name="prefetch-parser";    Owner="spokwn"; Asset="PrefetchParser.exe";        Type="Exe"; Admin=$true; Desc="Prefetch with signatures and YARA" }
+    @{ Name="PathsParser";        Owner="spokwn";                                    Type="Exe"; Admin=$true; Desc="Checks paths from a txt file" }
+    @{ Name="pcasvc-executed";    Owner="spokwn"; Asset="PcaSvcExecuted.exe";        Type="Exe"; Admin=$true; Desc="PcaSvc execution history" }
+    @{ Name="process-parser";     Owner="spokwn"; Asset="ProcessParser.exe";         Type="Exe"; Admin=$true; Desc="Executed files from process strings" }
+    @{ Name="ActivitiesCache-execution"; Owner="spokwn"; Asset="ActivitiesCacheParser.exe"; Type="Exe"; Admin=$true; Desc="Windows timeline executions" }
+    @{ Name="Replaceparser";      Owner="spokwn"; Asset="ReplaceParser.exe";         Type="Exe"; Admin=$true; Desc="Replaced files from the journal" }
+    @{ Name="JournalTrace";       Owner="spokwn";                                    Type="Exe"; Admin=$true; Desc="NTFS journal entries" }
+    @{ Name="KernelLiveDumpTool"; Owner="spokwn";                                    Type="Exe"; Admin=$true; Desc="Live kernel dump strings" }
     @{ Name="JumpListsView";      Owner="NirSoft"; Type="Zip"; Admin=$false; Desc="Jump lists"
        Url="https://www.nirsoft.net/utils/jumplistsview.zip"; Page="https://www.nirsoft.net/utils/jump_lists_view.html" }
     @{ Name="ShellBagsView";      Owner="NirSoft"; Type="Zip"; Admin=$false; Desc="ShellBags"
@@ -47,6 +57,16 @@ $tools = @(
        Url="https://raw.githubusercontent.com/Okolle7/MacroChecker/main/MacroCheck.ps1"; Page="https://github.com/Okolle7/MacroChecker" }
     @{ Name="JVM Argument";       Owner="Checks";  Type="Ps1"; Admin=$false; Desc="Minecraft JVM arguments"
        Url="https://raw.githubusercontent.com/Okolle7/JVM-Arguments/main/JVMArgument.ps1"; Page="https://github.com/Okolle7/JVM-Arguments" }
+    @{ Name="System Informer";    Owner="Utilities"; Type="Zip"; Admin=$true; Desc="Process and memory viewer (canary)"
+       Repo="winsiderss/si-builds"; Asset="systeminformer-build-bin.zip"; Exe="amd64\SystemInformer.exe"; Page="https://systeminformer.com/canary" }
+    @{ Name="Everything";         Owner="Utilities"; Type="Zip"; Admin=$false; Desc="Instant file search"
+       Url="https://www.voidtools.com/Everything-1.4.1.1032.x64.zip"; Page="https://www.voidtools.com/downloads/" }
+    @{ Name="Detect It Easy";     Owner="Utilities"; Type="Zip"; Admin=$false; Desc="Packer and compiler detection"
+       Repo="horsicq/DIE-engine"; Asset="die_win64_[0-9]*.zip"; Exe="die.exe" }
+    @{ Name="Timeline Explorer";  Owner="Utilities"; Type="Zip"; Admin=$false; Desc="CSV timeline viewer"
+       Url="https://download.ericzimmermanstools.com/net9/TimelineExplorer.zip"; Exe="TimelineExplorer\TimelineExplorer.exe"; Page="https://ericzimmerman.github.io/" }
+    @{ Name="Registry Explorer";  Owner="Utilities"; Type="Zip"; Admin=$true; Desc="Registry hive viewer"
+       Url="https://download.ericzimmermanstools.com/net9/RegistryExplorer.zip"; Exe="RegistryExplorer\RegistryExplorer.exe"; Page="https://ericzimmerman.github.io/" }
     @{ Name="NET 9.0";            Owner="Dependencies"; Type="Setup"; Admin=$false; Desc=".NET 9 Desktop Runtime"
        Url="https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/9.0.22/windowsdesktop-runtime-9.0.22-win-x64.exe"; Page="https://dotnet.microsoft.com/en-us/download/dotnet/9.0" }
     @{ Name="NET 10.0";           Owner="Dependencies"; Type="Setup"; Admin=$false; Desc=".NET 10 Desktop Runtime"
@@ -56,27 +76,33 @@ $tools = @(
 )
 
 foreach ($t in $tools) {
+    if ($t.Type -eq "Exe" -and -not $t.Repo) { $t.Repo = "$($t.Owner)/$($t.Name)" }
+    if ($t.Repo) {
+        if (-not $t.Asset) { $t.Asset = "$($t.Name).exe" }
+        $t.Url = "https://github.com/$($t.Repo)/releases/latest/download/$($t.Asset)"
+        if ($t.Asset.Contains("*") -or $t.Type -eq "Zip") { $t.Url = "https://api.github.com/repos/$($t.Repo)/releases/latest" }
+    }
+
     switch ($t.Type) {
         "Exe" {
-            if (-not $t.Asset) { $t.Asset = "$($t.Name).exe" }
-            $t.Url = "https://github.com/$($t.Owner)/$($t.Name)/releases/latest/download/$($t.Asset)"
             $t.Path = Join-Path $installDir "$($t.Name).exe"
             $t.Download = $t.Path
         }
         "Setup" {
             $t.Path = Join-Path $installDir "Dependencies\$($t.Name).exe"
             $t.Download = $t.Path
-            $t.Meta = Join-Path $installDir "meta\$($t.Name).json"
         }
         "Zip" {
+            if (-not $t.Exe) { $t.Exe = "$($t.Name).exe" }
             $t.ExtractTo = Join-Path $installDir $t.Name
-            $t.Path = Join-Path $t.ExtractTo "$($t.Name).exe"
+            $t.Path = Join-Path $t.ExtractTo $t.Exe
             $t.Download = Join-Path $installDir "$($t.Name).zip"
-            $t.Meta = Join-Path $installDir "meta\$($t.Name).json"
         }
         "Ps1" { if (-not $t.Url) { $t.Url = "https://raw.githubusercontent.com/$($t.Owner)/$($t.Name)/main/$($t.Name).ps1" } }
     }
-    if (-not $t.Page) { $t.Page = "https://github.com/$($t.Owner)/$($t.Name)" }
+
+    if ($t.Type -ne "Ps1") { $t.Meta = Join-Path $installDir "meta\$($t.Name).json" }
+    if (-not $t.Page) { $t.Page = if ($t.Repo) { "https://github.com/$($t.Repo)" } else { "https://github.com/$($t.Owner)/$($t.Name)" } }
 }
 
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -450,10 +476,12 @@ function Update-Row($tool) {
 function Update-Filter {
     $query = $ui.Search.Text.Trim()
     $shown = 0
+    $installed = 0
     foreach ($t in $tools) {
         $match = (Test-InView $t $script:current) -and (-not $query -or $t.Name -like "*$query*" -or $t.Desc -like "*$query*")
         $t.Row.Visibility = if ($match) { "Visible" } else { "Collapsed" }
         if ($match) { $shown++ }
+        if ($match -and (Test-Installed $t)) { $installed++ }
     }
 
     foreach ($view in $navCounts.Keys) {
@@ -461,7 +489,6 @@ function Update-Filter {
         $navCounts[$view].Text = if ($view -eq "Updates" -and $count -eq 0) { "" } else { $count }
     }
 
-    $installed = @($tools | Where-Object { Test-Installed $_ }).Count
     $updates = @($tools | Where-Object { (Test-NeedsUpdate $_) -and -not $_.Downloading }).Count
     $ui.Heading.Text = if ($script:current -eq "All") { "All tools" } else { $script:current }
     $ui.SubHeading.Text = "$shown tools  $([char]0xB7)  $installed installed"
@@ -478,11 +505,16 @@ function Start-Download($tool, [bool]$runAfter) {
 
     $ps = [powershell]::Create()
     [void]$ps.AddScript({
-        param($url, $file, $extractTo, $exe, $metaFile)
+        param($url, $file, $extractTo, $exe, $metaFile, $asset)
         $ErrorActionPreference = "Stop"
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         $client = New-Object Net.WebClient
         $client.Headers.Add("User-Agent", "ErrorXTools")
+        if ($url -like "https://api.github.com/*") {
+            $release = $client.DownloadString($url) | ConvertFrom-Json
+            $url = @($release.assets | Where-Object name -like $asset)[0].browser_download_url
+            if (-not $url) { throw "No $asset in release $($release.tag_name)" }
+        }
         $client.DownloadFile($url, "$file.part")
         Move-Item -LiteralPath "$file.part" -Destination $file -Force
         if ($extractTo) {
@@ -492,11 +524,12 @@ function Start-Download($tool, [bool]$runAfter) {
         if ($metaFile) {
             New-Item -ItemType Directory -Force -Path (Split-Path $metaFile) | Out-Null
             @{
+                Source = $url
                 LastModified = "$($client.ResponseHeaders['Last-Modified'])"
                 Sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $exe).Hash.ToLower()
             } | ConvertTo-Json | Set-Content -LiteralPath $metaFile
         }
-    }).AddArgument($tool.Url).AddArgument($tool.Download).AddArgument($tool.ExtractTo).AddArgument($tool.Path).AddArgument($tool.Meta)
+    }).AddArgument($tool.Url).AddArgument($tool.Download).AddArgument($tool.ExtractTo).AddArgument($tool.Path).AddArgument($tool.Meta).AddArgument($tool.Asset)
 
     $tool.Downloading = $true
     Update-Row $tool
@@ -506,7 +539,7 @@ function Start-Download($tool, [bool]$runAfter) {
 }
 
 function Start-Verify($tool) {
-    $info = @{ Type = $tool.Type; Owner = $tool.Owner; Name = $tool.Name; Asset = $tool.Asset; Path = $tool.Path; Meta = $tool.Meta; Url = $tool.Url }
+    $info = @{ Type = $tool.Type; Repo = $tool.Repo; Asset = $tool.Asset; Path = $tool.Path; Meta = $tool.Meta; Url = $tool.Url }
 
     $ps = [powershell]::Create()
     [void]$ps.AddScript({
@@ -526,9 +559,12 @@ function Start-Verify($tool) {
         }
 
         $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $tool.Path).Hash.ToLower()
+        $meta = $null
+        if (Test-Path -LiteralPath $tool.Meta) { $meta = Get-Content -Raw -LiteralPath $tool.Meta | ConvertFrom-Json }
 
         if ($tool.Type -eq "Exe") {
-            $json = $client.DownloadString("https://api.github.com/repos/$($tool.Owner)/$($tool.Name)/releases?per_page=100") | ConvertFrom-Json
+            $size = (Get-Item -LiteralPath $tool.Path).Length
+            $json = $client.DownloadString("https://api.github.com/repos/$($tool.Repo)/releases?per_page=100") | ConvertFrom-Json
             $releases = $json | Where-Object { -not $_.draft } | Sort-Object { [datetime]$_.published_at } -Descending
             $latest = $releases | Where-Object { -not $_.prerelease } | Select-Object -First 1
 
@@ -540,8 +576,10 @@ function Start-Verify($tool) {
             }
 
             foreach ($rel in $releases) {
-                $asset = $rel.assets | Where-Object name -eq $tool.Asset
-                if ($asset.digest -ne "sha256:$hash") { continue }
+                $asset = $rel.assets | Where-Object name -like $tool.Asset | Select-Object -First 1
+                if (-not $asset) { continue }
+                $match = if ($asset.digest) { $asset.digest -eq "sha256:$hash" } else { $asset.size -eq $size -and $meta.Sha256 -eq $hash }
+                if (-not $match) { continue }
                 if ($rel.id -eq $latest.id) { return @{ State = "latest"; Version = Get-Version $rel } }
                 return @{ State = "outdated"; Version = Get-Version $rel; Detail = "Latest is $(Get-Version $latest)" }
             }
@@ -551,10 +589,15 @@ function Start-Verify($tool) {
         if ((Get-AuthenticodeSignature -LiteralPath $tool.Path).Status -eq "HashMismatch") {
             return @{ State = "modified"; Detail = "Signature broken" }
         }
-        if (-not (Test-Path -LiteralPath $tool.Meta)) { return @{ State = "unknown"; Detail = "Downloaded without version info" } }
-
-        $meta = Get-Content -Raw -LiteralPath $tool.Meta | ConvertFrom-Json
+        if (-not $meta) { return @{ State = "unknown"; Detail = "Downloaded without version info" } }
         if ($meta.Sha256 -ne $hash) { return @{ State = "modified"; Detail = "Changed after download" } }
+
+        if ($tool.Url -like "https://api.github.com/*") {
+            $release = $client.DownloadString($tool.Url) | ConvertFrom-Json
+            $latest = @($release.assets | Where-Object name -like $tool.Asset)[0].browser_download_url
+            if ($latest -ne $meta.Source) { return @{ State = "outdated"; Detail = "Latest is $($release.tag_name)" } }
+            return @{ State = "latest"; Version = $release.tag_name }
+        }
         $remote = (Invoke-WebRequest -Method Head -UseBasicParsing -Uri $tool.Url).Headers["Last-Modified"]
         if ($remote -and $remote -ne $meta.LastModified) { return @{ State = "outdated"; Detail = "Newer build from $remote" } }
         return @{ State = "latest" }
@@ -583,7 +626,10 @@ $timer.Add_Tick({
             $err = $_.Exception.InnerException
             if (-not $err) { $err = $_.Exception }
             if ($job.Verify) { $tool.Check = @{ State = "error"; Detail = $err.Message } }
-            else { Write-Log "$($tool.Name): $($err.Message)" }
+            else {
+                Remove-Item -LiteralPath $tool.Download, "$($tool.Download).part" -ErrorAction SilentlyContinue
+                Write-Log "$($tool.Name): $($err.Message)"
+            }
         }
         $job.PS.Dispose()
         $pending.Remove($job)
